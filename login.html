@@ -50,9 +50,9 @@
 </div>
 
 <script>
-    // உங்கள் UpiServer API விவரங்கள்
-    const USER_TOKEN = "3f8fb8ebd93d2cfab1bc213c189a61df"; // உங்கள் Token
-    const CLIENT_MAC = "$(mac)"; // MikroTik MAC Variable
+    // UpiServer User Token & MikroTik MAC Variable
+    const USER_TOKEN = "3f8fb8ebd93d2cfab1bc213c189a61df"; 
+    const CLIENT_MAC = "$(mac)"; 
     let orderId = "";
     let checkInterval = null;
 
@@ -61,9 +61,8 @@
         document.getElementById("qr-section").style.display = "block";
         document.getElementById("plan-title").innerText = planName + " - ₹" + amount;
 
-        orderId = Math.floor(1000000000 + Math.random() * 9000000000).toString(); // 10 Digit Order ID
+        orderId = Math.floor(1000000000 + Math.random() * 9000000000).toString();
 
-        // UpiServer-க்கு Form-Encoded Payload அனுப்புதல்
         const formData = new URLSearchParams();
         formData.append("customer_mobile", "9876543210");
         formData.append("user_token", USER_TOKEN);
@@ -73,7 +72,11 @@
         formData.append("remark1", planName);
         formData.append("remark2", CLIENT_MAC);
 
-        fetch("https://upiserver.in/api/create-order", {
+        // CORS Proxy சேர்க்கப்பட்ட Target API URL
+        const targetUrl = "https://upiserver.in/api/create-order";
+        const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+
+        fetch(proxyUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded"
@@ -82,18 +85,18 @@
         })
         .then(res => res.json())
         .then(data => {
-            console.log("Response:", data);
+            console.log("Create Order Response:", data);
             if(data.status === true && data.result && data.result.payment_url) {
                 document.getElementById("qr-code").innerHTML = "";
                 
-                // UpiServer தரும் URL-க்கு QR Code உருவாக்குதல்
+                // QR Code உருவாக்குதல்
                 new QRCode(document.getElementById("qr-code"), {
                     text: data.result.payment_url,
                     width: 200,
                     height: 200
                 });
                 
-                // 3 வினாடிக்கு ஒருமுறை Payment Status Check செய்ய தொடங்குதல்
+                // 3 வினாடிக்கு ஒருமுறை Status Check
                 checkInterval = setInterval(() => checkPaymentStatus(orderId), 3000);
             } else {
                 alert("QR Generation Error: " + (data.message || "Something went wrong"));
@@ -101,7 +104,7 @@
         })
         .catch(err => {
             console.error("Fetch Error:", err);
-            alert("API Connection Error!");
+            alert("API Connection Error! Check Console.");
         });
     }
 
@@ -110,7 +113,10 @@
         checkData.append("user_token", USER_TOKEN);
         checkData.append("order_id", txnId);
 
-        fetch("https://upiserver.in/api/check-order-status", {
+        const targetCheckUrl = "https://upiserver.in/api/check-order-status";
+        const proxyCheckUrl = "https://corsproxy.io/?" + encodeURIComponent(targetCheckUrl);
+
+        fetch(proxyCheckUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded"
@@ -119,7 +125,7 @@
         })
         .then(res => res.json())
         .then(data => {
-            console.log("Check Status:", data);
+            console.log("Status Check Response:", data);
             if(data.status === "COMPLETED" || data.status === true) {
                 clearInterval(checkInterval);
                 document.getElementById("pay-status").innerText = "Payment Successful! Connecting WiFi...";
@@ -140,7 +146,5 @@
     }
 </script>
 
-</body>
-</html>
 </body>
 </html>
