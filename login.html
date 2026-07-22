@@ -9,52 +9,101 @@
         .card { background: white; max-width: 400px; margin: 0 auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2 { color: #1a73e8; margin-bottom: 5px; }
         p { color: #5f6368; font-size: 14px; }
+        
+        /* Tab Navigation */
+        .tab-buttons { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: none; font-weight: bold; color: #5f6368; cursor: pointer; }
+        .tab-btn.active { color: #1a73e8; border-bottom: 3px solid #1a73e8; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .plan-btn { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #1a73e8; background: white; color: #1a73e8; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; }
         .plan-btn:hover { background: #1a73e8; color: white; }
-        #qr-section { display: none; margin-top: 20px; }
-        #qr-code { width: 200px; height: 200px; margin: 15px auto; }
+        
+        input[type="text"] { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
+        .submit-btn { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; }
+        
+        #qr-section { display: none; margin-top: 15px; }
+        #qr-code { width: 200px; height: 200px; margin: 10px auto; }
         .status { font-weight: bold; color: #e37400; margin-top: 10px; }
     </style>
-    <!-- QR Code Generator JS Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
 <div class="card">
     <h2>Mixcom Wi-Fi</h2>
-    <p>உங்களுக்கு தேவையான பிளானை தேர்ந்தெடுத்து UPI மூலம் பணம் செலுத்துங்கள்.</p>
+    <p>இணையத்தைப் பயன்படுத்த விருப்பத்தைத் தேர்ந்தெடுக்கவும்</p>
 
-    <!-- Plans Section -->
-    <div id="plans-section">
-        <button class="plan-btn" onclick="generatePayment(100, 'Monthly 4 Mbps')">₹100 - 4 Mbps (30 Days)</button>
-        <button class="plan-btn" onclick="generatePayment(150, 'Monthly 6 Mbps')">₹150 - 6 Mbps (30 Days)</button>
-        <button class="plan-btn" onclick="generatePayment(199, 'Monthly Super 6 Mbps')">₹199 - 6 Mbps (30 Days)</button>
-        <button class="plan-btn" onclick="generatePayment(250, 'Monthly Pro 6 Mbps')">₹250 - 6 Mbps (30 Days)</button>
+    <!-- Tab Buttons -->
+    <div class="tab-buttons">
+        <button class="tab-btn active" onclick="switchTab('online')">Online (UPI QR)</button>
+        <button class="tab-btn" onclick="switchTab('voucher')">Store Voucher</button>
     </div>
 
-    <!-- Hidden MikroTik Standard Form -->
+    <!-- Tab 1: UPI Online Payment -->
+    <div id="online-tab" class="tab-content active">
+        <div id="plans-section">
+            <button class="plan-btn" onclick="generatePayment(100, 'Monthly 4 Mbps')">₹100 - 4 Mbps (30 Days)</button>
+            <button class="plan-btn" onclick="generatePayment(150, 'Monthly 6 Mbps')">₹150 - 6 Mbps (30 Days)</button>
+            <button class="plan-btn" onclick="generatePayment(199, 'Monthly Super 6 Mbps')">₹199 - 6 Mbps (30 Days)</button>
+            <button class="plan-btn" onclick="generatePayment(250, 'Monthly Pro 6 Mbps')">₹250 - 6 Mbps (30 Days)</button>
+        </div>
+
+        <div id="qr-section">
+            <h3 id="plan-title"></h3>
+            <p>GPay / PhonePe / Paytm மூலம் கீழே உள்ள QR-ஐ ஸ்கேன் செய்யுங்கள்</p>
+            <div id="qr-code"></div>
+            <p class="status" id="pay-status">Waiting for payment...</p>
+        </div>
+    </div>
+
+    <!-- Tab 2: Offline Store Voucher Login -->
+    <div id="voucher-tab" class="tab-content">
+        <p>கடையில் வாங்கிய வவுச்சர் கோடை உள்ளிடவும்:</p>
+        <form name="voucherForm" action="$(link-login-only)" method="post">
+            <input type="hidden" name="dst" value="$(link-orig)" />
+            <input type="hidden" name="popup" value="true" />
+            <input type="text" id="vcode" name="username" placeholder="Enter Voucher Code" required />
+            <input type="hidden" id="vpass" name="password" value="" />
+            <button type="submit" class="submit-btn" onclick="setVoucherPassword()">Connect Wi-Fi</button>
+        </form>
+    </div>
+
+    <!-- Hidden Form for UPI Auto-Login -->
     <form name="login" action="$(link-login-only)" method="post" style="display:none">
         <input type="hidden" name="dst" value="$(link-orig)" />
         <input type="hidden" name="popup" value="true" />
         <input type="text" id="username" name="username" value="" />
         <input type="password" id="password" name="password" value="" />
     </form>
-
-    <!-- Dynamic QR Payment Section -->
-    <div id="qr-section">
-        <h3 id="plan-title"></h3>
-        <p>GPay / PhonePe / Paytm மூலம் கீழே உள்ள QR-ஐ ஸ்கேன் செய்யுங்கள்</p>
-        <div id="qr-code"></div>
-        <p class="status" id="pay-status">Waiting for payment...</p>
-    </div>
 </div>
 
 <script>
-    // UpiServer User Token & MikroTik MAC Variable
     const USER_TOKEN = "3f8fb8ebd93d2cfab1bc213c189a61df"; 
     const CLIENT_MAC = "$(mac)"; 
     let orderId = "";
     let checkInterval = null;
+
+    // Tab Switcher
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        if(tab === 'online') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('online-tab').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('voucher-tab').classList.add('active');
+        }
+    }
+
+    function setVoucherPassword() {
+        // Voucher Code-யையே Password-ஆக எடுத்துக்கொள்ளும்
+        document.getElementById("vpass").value = document.getElementById("vcode").value;
+    }
 
     function generatePayment(amount, planName) {
         document.getElementById("plans-section").style.display = "none";
@@ -72,39 +121,26 @@
         formData.append("remark1", planName);
         formData.append("remark2", CLIENT_MAC);
 
-        // CORS Proxy சேர்க்கப்பட்ட Target API URL
         const targetUrl = "https://upiserver.in/api/create-order";
         const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
 
         fetch(proxyUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: formData
         })
         .then(res => res.json())
         .then(data => {
-            console.log("Create Order Response:", data);
             if(data.status === true && data.result && data.result.payment_url) {
                 document.getElementById("qr-code").innerHTML = "";
-                
-                // QR Code உருவாக்குதல்
                 new QRCode(document.getElementById("qr-code"), {
                     text: data.result.payment_url,
-                    width: 200,
-                    height: 200
+                    width: 200, height: 200
                 });
-                
-                // 3 வினாடிக்கு ஒருமுறை Status Check
                 checkInterval = setInterval(() => checkPaymentStatus(orderId), 3000);
             } else {
-                alert("QR Generation Error: " + (data.message || "Something went wrong"));
+                alert("QR Error: " + (data.message || "Merchant Not Linked"));
             }
-        })
-        .catch(err => {
-            console.error("Fetch Error:", err);
-            alert("API Connection Error! Check Console.");
         });
     }
 
@@ -118,14 +154,11 @@
 
         fetch(proxyCheckUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: checkData
         })
         .then(res => res.json())
         .then(data => {
-            console.log("Status Check Response:", data);
             if(data.status === "COMPLETED" || data.status === true) {
                 clearInterval(checkInterval);
                 document.getElementById("pay-status").innerText = "Payment Successful! Connecting WiFi...";
@@ -133,16 +166,13 @@
 
                 autoLoginMikroTik();
             }
-        })
-        .catch(err => console.error("Status Check Error:", err));
+        });
     }
 
     function autoLoginMikroTik() {
         document.getElementById("username").value = CLIENT_MAC;
         document.getElementById("password").value = CLIENT_MAC;
-        setTimeout(() => {
-            document.forms["login"].submit();
-        }, 1000);
+        setTimeout(() => { document.forms["login"].submit(); }, 1000);
     }
 </script>
 
