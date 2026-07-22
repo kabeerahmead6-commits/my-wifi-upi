@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mixcom Wi-Fi Hotspot</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin:0; padding:20px; text-align: center; }
+        .card { background: white; max-width: 400px; margin: 0 auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; margin-bottom: 5px; }
+        p { color: #5f6368; font-size: 14px; }
+        .plan-btn { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #1a73e8; background: white; color: #1a73e8; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .plan-btn:hover { background: #1a73e8; color: white; }
+        #qr-section { display: none; margin-top: 20px; }
+        #qr-code { width: 200px; height: 200px; margin: 10px auto; }
+        .status { font-weight: bold; color: #e37400; margin-top: 10px; }
+    </style>
+    <!-- QR Code Generator JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="card">
+    <h2>Mixcom Wi-Fi</h2>
+    <p>உங்களுக்கு தேவையான பிளானை தேர்ந்தெடுத்து UPI மூலம் பணம் செலுத்துங்கள்.</p>
+
+    <!-- Plans Section -->
+    <div id="plans-section">
+        <button class="plan-btn" onclick="generatePayment(100, 'Monthly 4 Mbps', 30)">₹100 - 4 Mbps (30 Days)</button>
+        <button class="plan-btn" onclick="generatePayment(150, 'Monthly 6 Mbps', 30)">₹150 - 6 Mbps (30 Days)</button>
+        <button class="plan-btn" onclick="generatePayment(199, 'Monthly Super 6 Mbps', 30)">₹199 - 6 Mbps (30 Days)</button>
+        <button class="plan-btn" onclick="generatePayment(250, 'Monthly Pro 6 Mbps', 30)">₹250 - 6 Mbps (30 Days)</button>
+    </div>
+
+    <!-- Hidden MikroTik Standard Form -->
+    <form name="login" action="$(link-login-only)" method="post" style="display:none">
+        <input type="hidden" name="dst" value="$(link-orig)" />
+        <input type="hidden" name="popup" value="true" />
+        <input type="text" id="username" name="username" value="" />
+        <input type="password" id="password" name="password" value="" />
+    </form>
+
+    <!-- Dynamic QR Payment Section -->
+    <div id="qr-section">
+        <h3 id="plan-title"></h3>
+        <p>GPay / PhonePe / Paytm மூலம் கீழே உள்ள QR-ஐ ஸ்கேன் செய்யுங்கள்</p>
+        <div id="qr-code"></div>
+        <p class="status" id="pay-status">Waiting for payment...</p>
+    </div>
+</div>
+
+<script>
+    // Config: உங்கள் UPI Gateway API விவரங்கள் மற்றும் MikroTik MAC Address
+    const API_KEY = "YOUR_UPI_GATEWAY_API_KEY"; // எ.கா: Upigateway / PGBrain API Key
+    const CLIENT_MAC = "$(mac)"; // MikroTik Variable - பயனர் மொபைல் MAC முகவரி
+    let orderId = "";
+    let checkInterval = null;
+
+    function generatePayment(amount, planName, validityDays) {
+        document.getElementById("plans-section").style.display = "none";
+        document.getElementById("qr-section").style.display = "block";
+        document.getElementById("plan-title").innerText = planName + " - ₹" + amount;
+
+        orderId = "MIX_" + Date.now(); // Unique Order ID
+
+        // 1. UPI API Call: Dynamic UPI Intent / String உருவாக்குகிறது
+        fetch("https://api.upigateway.com/v1/create_order", {  // உங்கள் UPI Gateway API URL
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                key: API_KEY,
+                client_txn_id: orderId,
+                amount: amount.toString(),
+                p_info: planName,
+                customer_name: CLIENT_MAC,
+                customer_email: "user@mixcom.in",
+                customer_mobile: "9999999999"
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status) {
+                // QR Code உருவாக்குதல்
+                document.getElementById("qr-code").innerHTML = "";
+                new QRCode(document.getElementById("qr-code"), data.data.payment_url);
+                
+                // 2. பேமெண்ட் வந்துவிட்டதா என ஆட்டோவாக செக் செய்யும் Loop (Every 3 Sec)
+                checkInterval = setInterval(() => checkPaymentStatus(orderId), 3000);
+            } else {
+                alert("QR Generation Failed. Try again!");
+            }
+        });
+    }
+
+    // 3. Payment Status Check Function
+    function checkPaymentStatus(txnId) {
+        fetch("https://api.upigateway.com/v1/check_order_status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: API_KEY, client_txn_id: txnId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status && data.data.status === "COMPLETED") {
+                clearInterval(checkInterval);
+                document.getElementById("pay-status").innerText = "Payment Successful! Connecting WiFi...";
+                document.getElementById("pay-status").style.color = "green";
+
+                // 4. Auto-Login to MikroTik
+                autoLoginMikroTik();
+            }
+        });
+    }
+
+    // 5. MikroTik Router-ல் ஆட்டோ லாகின் செய்யும் பங்க்ஷன்
+    function autoLoginMikroTik() {
+        // Username மற்றும் Password-ஆக பயனரின் MAC Address பயன்படுத்தப்படும்
+        document.getElementById("username").value = CLIENT_MAC;
+        document.getElementById("password").value = CLIENT_MAC;
+        
+        // MikroTik Form Submit
+        setTimeout(() => {
+            document.forms["login"].submit();
+        }, 1000);
+    }
+</script>
+
+</body>
+</html>
