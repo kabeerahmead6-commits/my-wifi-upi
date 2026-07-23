@@ -68,7 +68,11 @@
             <input type="text" id="vcode" name="username" placeholder="Enter Voucher Code" required />
             <input type="hidden" id="vpass" name="password" value="" />
             <button type="submit" class="submit-btn" onclick="setVoucherPassword()">Connect Wi-Fi</button>
-        </form>
+        </form> 
+        <!-- Error Message Display -->
+        $(if error) 
+            <p style="color: red; font-weight: bold; margin-top: 10px;">$(error)</p>
+        $(endif)
     </div>
 
     <!-- Hidden Form for UPI Auto-Login -->
@@ -168,8 +172,10 @@
             }
         });
     }
-
-    function autoLoginMikroTik() {
+   function setVoucherPassword() {
+        document.getElementById("vpass").value = document.getElementById("vcode").value;
+    }
+   function autoLoginMikroTik() {
         document.getElementById("username").value = CLIENT_MAC;
         document.getElementById("password").value = CLIENT_MAC;
         setTimeout(() => { document.forms["login"].submit(); }, 1000);
