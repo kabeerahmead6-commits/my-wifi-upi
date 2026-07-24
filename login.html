@@ -169,7 +169,7 @@
         })
         .then(res => res.json())
         .then(data => {
-            if(data.status === "COMPLETED" || data.status === true) {
+            if(data.status === "COMPLETED" || data.status === "SUCCESS") {
                 clearInterval(checkInterval);
                 document.getElementById("pay-status").innerText = "Payment Successful! Connecting WiFi...";
                 document.getElementById("pay-status").style.color = "green";
